@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Healthcare Translation App</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h2>Patient ↔ Doctor Chat</h2>
+
+        <div class="language-select">
+            <label for="role">I am a:</label>
+            <select id="role" onchange="updateLanguageLabel()">
+                <option value="patient">Patient</option>
+                <option value="doctor">Doctor</option>
+            </select>
+
+            <label for="userLang" id="languageLabel">My Language:</label>
+            <select id="userLang">
+                <option value="English" selected>English</option>
+                <option value="Urdu">Urdu</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Spanish">Spanish</option>
+            </select>
+        </div>
+
+        <div id="chat-box"></div>
+
+        <!-- Inside <body> (unchanged structure except input group) -->
+        <div class="input-group">
+            <input type="text" id="messageInput" placeholder="Type or speak your message..." />
+            <button class="icon-button" onclick="startRecognition()" title="Speak"><span>🎤</span></button>
+            <button class="send-button" onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+
+</html>

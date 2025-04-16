@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Healthcare Translation Web App</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Healthcare Translation Web App</h1>
+        <!-- Language selection -->
+        <div class="language-selection">
+            <label for="source-lang">Source Language:</label>
+            <select id="source-lang">
+                <option value="en">English</option>
+                <!-- More language options as needed -->
+            </select>
+            <label for="target-lang">Target Language:</label>
+            <select id="target-lang">
+                <option value="es">Spanish</option>
+                <!-- More language options -->
+            </select>
+        </div>
+        
+        <!-- Transcription display -->
+        <div id="transcripts">
+            <div id="original-transcript" class="transcript-box">
+                <h2>Original Transcript</h2>
+                <p id="original-text"></p>
+            </div>
+            <div id="translated-transcript" class="transcript-box">
+                <h2>Translated Transcript</h2>
+                <p id="translated-text"></p>
+                <button id="speak-btn">Speak</button>
+            </div>
+        </div>
+        
+        <!-- Record button -->
+        <button id="record-btn">Start Recording</button>
+    </div>
+    <script src="js/main.js"></script>
+</body>
+</html>
