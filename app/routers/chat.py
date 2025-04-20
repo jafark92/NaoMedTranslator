@@ -57,7 +57,7 @@ async def send_message(
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         message = Message(
-            sender=current_user['username'],
+            sender=current_user.username,
             recipient=request.recipient,
             content=request.content,
             timestamp=datetime.now(timezone.utc).isoformat()
@@ -79,7 +79,7 @@ async def send_message(
         manager.add_message(message)
 
         # Publish to Ably channel
-        channel_name = f"chat:{':'.join(sorted([current_user['username'], request.recipient]))}"
+        channel_name = f"chat:{':'.join(sorted([current_user.username, request.recipient]))}"
         channel = ably.channels.get(channel_name)
         await channel.publish("message", message.model_dump())
 
