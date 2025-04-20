@@ -22,3 +22,8 @@ class Message(BaseModel):
     timestamp: str
     translated_content: Optional[str] = None  # Add translated_content field
     audio_url: Optional[str] = None  # Add audio_url field
+
+
+class SendMessageRequest(BaseModel):
+    recipient: str
+    content: str
