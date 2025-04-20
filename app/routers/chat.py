@@ -8,15 +8,18 @@ from app.services.translator import translate_message
 from app.dependencies import get_current_user
 from app.database import fake_db
 from app.dependencies import get_current_user, get_ably
+from ably import AblyRest
+import os
 
 router = APIRouter()
+
+ably = AblyRest(os.getenv("ABLY_API_KEY"))
 
 
 @router.get("/chat/history/{recipient}", response_model=List[Message])
 async def get_chat_history(
     recipient: str,
-    current_user: dict = Depends(get_current_user),
-    ably: AblyRest = Depends(get_ably),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     GET endpoint to fetch chat history between the logged-in user and the recipient.
@@ -37,7 +40,6 @@ async def get_chat_history(
 @router.get("/chat/ably/token")
 async def get_ably_token(
     current_user: dict = Depends(get_current_user),
-    ably: AblyRest = Depends(get_ably),
 ):
     """
     Generate a secure token for Ably. This allows frontend to connect to Ably using token auth.
@@ -69,7 +71,6 @@ async def get_ably_token(
 async def send_message(
     request: SendMessageRequest,
     current_user: dict = Depends(get_current_user),
-    ably: AblyRest = Depends(get_ably),
 ):
     """
     Receive a message, translate if needed, generate audio, and publish to Ably.

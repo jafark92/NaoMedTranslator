@@ -15,13 +15,3 @@ async def get_current_user(request: Request) -> Optional[dict]:
         return None
     user = next((u for u in fake_db["users"] if u.username == username), None)
     return user
-
-
-async def get_current_user_ws(websocket: WebSocket) -> Optional[dict]:
-    """Dependency for WebSocket"""
-    username = websocket.session.get("username") if hasattr(
-        websocket, "session") else None
-    if not username:
-        return None
-    user = next((u for u in fake_db["users"] if u.username == username), None)
-    return user
