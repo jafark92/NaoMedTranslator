@@ -34,9 +34,22 @@ async def get_ably_token(current_user: dict = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        token_request = await ably.auth.create_token_request(
-            {'clientId': current_user.username})
-        return token_request
+        # Generate token request
+        token_request = await ably.auth.create_token_request({'clientId': current_user.username})
+
+        # Manually construct the response dictionary to avoid internal class attributes
+        token_response = {
+            "keyName": token_request.key_name,
+            "clientId": token_request.client_id,
+            "nonce": token_request.nonce,
+            "mac": token_request.mac,
+            "capability": token_request.capability,
+            "ttl": token_request.ttl,
+            "timestamp": token_request.timestamp
+        }
+
+        print(f"Token response: {token_response}")  # Debug log
+        return token_response
     except Exception as e:
         print(f"Error generating Ably token: {e}")
         raise HTTPException(
