@@ -20,7 +20,7 @@ app.add_middleware(SessionMiddleware,
 
 app.include_router(auth.router)
 app.include_router(home.router)
-app.include_router(chat.router)
+# app.include_router(chat.router)
 
 if __name__ == "__main__":
     import uvicorn
