@@ -7,8 +7,13 @@ from app.services.chat_manager import ChatManager
 from app.services.audio import text_to_speech
 from app.services.translator import translate_message
 from app.database import fake_db
+from ably import AblyRest
+import os
 
 router = APIRouter()
+
+# Initialize Ably client
+ably = AblyRest(os.getenv("ABLY_API_KEY"))
 
 
 @router.get("/chat/history/{recipient}", response_model=List[Message])
@@ -21,51 +26,56 @@ async def get_chat_history(recipient: str, current_user: dict = Depends(get_curr
     return manager.get_history(current_user.username, recipient)
 
 
-@router.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket, current_user: dict = Depends(get_current_user_ws), manager: ChatManager = Depends(get_chat_manager)):
+# Ably instead of direct WebSocket connections
+# Native WebSockets won’t work directly on Vercel’s serverless infrastructure.
+@router.get("/ably/token")
+async def get_ably_token(current_user: dict = Depends(get_current_user)):
+    """GET Endpoint, generates a token tied to the current user's username, which the frontend will use to connect to Ably"""
     if not current_user:
-        await websocket.close(code=1008)
-        return
-    # Accept the handshake here
-    await websocket.accept()
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token_request = ably.auth.create_token_request(
+        {'clientId': current_user['username']})
+    return token_request
 
-    # Register connection
-    manager.connect(current_user.username, websocket)
 
-    try:
-        while True:
-            data = await websocket.receive_json()
-            message = Message(
-                sender=current_user.username,
-                recipient=data["recipient"],
-                content=data["content"],
-                timestamp=datetime.now(timezone.utc).isoformat()
-            )
+@router.post("/chat/send")
+async def send_message(
+    recipient: str,
+    content: str,
+    current_user: dict = Depends(get_current_user),
+    manager: ChatManager = Depends(get_chat_manager)
+):
+    """
+    POST endpoint to receive messages from clients, process them, and publish to Ably
+    Backend publishes messages to Ably channels, and clients subscribe to those channels directly
+    """
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    message = Message(
+        sender=current_user['username'],
+        recipient=recipient,
+        content=content,
+        timestamp=datetime.now(timezone.utc).isoformat()
+    )
 
-            # Translate message and generate audio
-            recipient_user = next(
-                (u for u in fake_db["users"] if u.username == message.recipient), None)
-            if recipient_user and recipient_user.language != current_user.language:
-                try:
-                    # Translate using OpenAI
-                    message.translated_content = await translate_message(
-                        message.content, recipient_user.language
-                    )
-                    # Generate audio for the translated text
-                    message.audio_url = await text_to_speech(
-                        message.translated_content, recipient_user.language
-                    )
-                except Exception as e:
-                    print(f"Translation or TTS error: {e}")
-                    message.translated_content = None
-                    message.audio_url = None
+    # Translate message and generate audio if needed
+    recipient_user = next(
+        (u for u in fake_db["users"] if u.username == recipient), None)
+    if recipient_user and recipient_user.language != current_user.language:
+        try:
+            message.translated_content = await translate_message(content, recipient_user.language)
+            message.audio_url = await text_to_speech(message.translated_content, recipient_user.language)
+        except Exception as e:
+            print(f"Translation or TTS error: {e}")
+            message.translated_content = None
+            message.audio_url = None
 
-            # Save to history & broadcast to all sessions
-            await manager.broadcast(message.sender, message)
+    # Save to chat history
+    manager.add_message(message)
 
-    except WebSocketDisconnect:
-        # We can log or ignore it
-        pass
-    finally:
-        # Clean up connection
-        manager.disconnect(current_user.username, websocket)
+    # Publish to Ably channel
+    channel_name = f"chat:{':'.join(sorted([current_user['username'], recipient]))}"
+    channel = ably.channels.get(channel_name)
+    await channel.publish("message", message.model_dump())
+
+    return {"status": "success"}

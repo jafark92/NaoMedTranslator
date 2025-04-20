@@ -1,5 +1,15 @@
 let selectedUser = null;
-let ws = null;
+let ably;
+let channel;
+
+// Initialize Ably with token authentication
+ably = new Ably.Realtime({
+    authUrl: '/chat/ably/token',
+    clientId: currentUser.username
+});
+ably.connection.on('connected', () => {
+    console.log('Connected to Ably');
+});
 
 function startChat(username) {
     if (username === currentUser.username) {
@@ -10,6 +20,13 @@ function startChat(username) {
     document.getElementById("chat-header").textContent = `Chatting with: ${username}`;
     document.getElementById("chat-box").innerHTML = "";
     fetchChatHistory(username);
+
+    // Subscribe to Ably channel for this conversation
+    const channelName = `chat:${[currentUser.username, selectedUser].sort().join(':')}`;
+    channel = ably.channels.get(channelName);
+    channel.subscribe('message', (msg) => {
+        displayMessage(msg.data);
+    });
 }
 
 function fetchChatHistory(username) {
@@ -69,7 +86,7 @@ function playAudio(audioUrl) {
 }
 
 function sendMessage() {
-    if (!selectedUser || !ws) {
+    if (!selectedUser) {
         alert("Please select a user to chat with!");
         return;
     }
@@ -77,13 +94,20 @@ function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
 
-    // Send via WebSocket
-    ws.send(JSON.stringify({
-        recipient: selectedUser,
-        content: message
-    }));
-
-    messageInput.value = "";
+    fetch('/chat/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ recipient: selectedUser, content: message })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to send message');
+        messageInput.value = "";
+    })
+    .catch(error => {
+        console.error('Error sending message:', error);
+        alert('Failed to send message');
+    });
 }
 
 function startRecognition() {
@@ -97,7 +121,9 @@ function startRecognition() {
         "ur": "ur-PK",
         "hi": "hi-IN",
         "es": "es-ES",
-        "fr": "fr-FR"
+        "fr": "fr-FR",
+        "ja": "ja-JP",  // Added Japanese
+        "ru": "ru-RU"   // Added Russian
     };
     recognition.lang = langMap[sourceLang] || "en-US";
 
@@ -129,24 +155,3 @@ function startRecognition() {
 
     recognition.start();
 }
-
-// Initialize WebSocket on page load
-function initializeWebSocket() {
-    ws = new WebSocket(`ws://${location.host}/ws/chat`);
-    ws.onmessage = function(event) {
-        const message = JSON.parse(event.data);
-        displayMessage(message);
-    };
-    ws.onerror = function(error) {
-        console.error("WebSocket error:", error);
-    };
-    ws.onclose = function() {
-        console.log("WebSocket closed");
-        ws = null;
-        // Attempt to reconnect after a delay
-        setTimeout(initializeWebSocket, 5000);
-    };
-}
-
-// Start WebSocket when the page loads
-initializeWebSocket();
