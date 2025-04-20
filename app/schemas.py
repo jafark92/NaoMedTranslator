@@ -1,5 +1,18 @@
 from typing import Optional
 from pydantic import BaseModel
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    DOCTOR = "doctor"
+    PATIENT = "patient"
+
+
+class User(BaseModel):
+    username: str
+    role: UserRole
+    language: str
+    password: str  # Store hashed password
 
 
 class Message(BaseModel):
