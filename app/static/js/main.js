@@ -4,7 +4,7 @@ let channel;
 
 // Initialize Ably with token authentication
 ably = new Ably.Realtime({
-    authUrl: '/chat/ably/token',
+    authUrl: '/ably/token',
     clientId: currentUser.username
 });
 ably.connection.on('connected', () => {
