@@ -2,7 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPExce
 from typing import List, Dict, Any
 from datetime import datetime, timezone
 from app.schemas import Message, SendMessageRequest
-from app.dependencies import get_current_user, get_current_user_ws, get_chat_manager
+from app.dependencies import get_current_user, get_chat_manager
 from app.services.chat_manager import ChatManager
 from app.services.audio import text_to_speech
 from app.services.translator import translate_message
@@ -34,7 +34,7 @@ async def get_ably_token(current_user: dict = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        token_request = ably.auth.create_token_request(
+        token_request = await ably.auth.create_token_request(
             {'clientId': current_user.username})
         return token_request
     except Exception as e:
