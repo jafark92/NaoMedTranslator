@@ -9,34 +9,53 @@
 
 <body>
     <div class="container">
-        <h2>Patient ↔ Doctor Chat</h2>
-
-        <div class="language-select">
-            <label for="role">I am a:</label>
-            <select id="role" onchange="updateLanguageLabel()">
-                <option value="patient">Patient</option>
-                <option value="doctor">Doctor</option>
-            </select>
-
-            <label for="userLang" id="languageLabel">My Language:</label>
-            <select id="userLang">
-                <option value="English" selected>English</option>
-                <option value="Urdu">Urdu</option>
-                <option value="Hindi">Hindi</option>
-                <option value="Spanish">Spanish</option>
-            </select>
+        <!-- Sidebar for user list -->
+        <div class="sidebar">
+            <h3>Available Users</h3>
+            <ul class="user-list">
+                {% for user in users %}
+                <li onclick="startChat('{{ user.username }}')">
+                    <strong>{{ user.username }}</strong><br>
+                    Role: {{ user.role | capitalize }}<br>
+                    Language: {{ user.language | upper }}
+                </li>
+                {% endfor %}
+            </ul>
         </div>
 
-        <div id="chat-box"></div>
+        <!-- Main chat container -->
+        <div class="chat-container">
+            <h2>Patient ↔ Doctor Chat</h2>
 
-        <!-- Inside <body> (unchanged structure except input group) -->
-        <div class="input-group">
-            <input type="text" id="messageInput" placeholder="Type or speak your message..." />
-            <button class="icon-button" onclick="startRecognition()" title="Speak"><span>🎤</span></button>
-            <button class="send-button" onclick="sendMessage()">➤</button>
+            <!-- Display logged-in user info -->
+            <div class="logged-in-user">
+                <div>
+                    <strong>Logged in as:</strong> {{ current_user.username }}<br>
+                    Role: {{ current_user.role | capitalize }}<br>
+                    Language: {{ current_user.language | upper }}
+                </div>
+                <form action="/logout" method="post">
+                    <button type="submit" class="logout-button">Logout</button>
+                </form>
+            </div>
+
+            <div class="chat-header" id="chat-header">Select a user to start chatting</div>
+            <div id="chat-box"></div>
+            <div class="input-group">
+                <input type="text" id="messageInput" placeholder="Type or speak your message..." />
+                <button class="icon-button" onclick="startRecognition()" title="Speak"><span>🎤</span></button>
+                <button class="send-button" onclick="sendMessage()">➤</button>
+            </div>
         </div>
     </div>
 
+    <script>
+        let currentUser = {
+            username: "{{ current_user.username }}",
+            role: "{{ current_user.role }}",
+            language: "{{ current_user.language }}"
+        };
+    </script>
     <script src="/static/js/main.js"></script>
 </body>
 
