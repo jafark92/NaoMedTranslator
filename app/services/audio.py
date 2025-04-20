@@ -2,29 +2,25 @@ import uuid
 import os
 from gtts import gTTS
 import time
-
-# Ensure audio directory exists
-AUDIO_DIR = "app/static/audio"
-os.makedirs(AUDIO_DIR, exist_ok=True)
+import vercel_blob
 
 
 async def text_to_speech(text: str, lang: str) -> str:
     # Generate a unique filename for the audio
     start_time = time.time()
     audio_filename = f"{uuid.uuid4()}.mp3"
-    audio_path = os.path.join(AUDIO_DIR, audio_filename)
-    print(f"Generating audio at: {audio_path}")
+    temp_path = os.path.join("/tmp", audio_filename)  # Use /tmp for Vercel
+    print(f"Generating audio at: {temp_path}")
     try:
         tts = gTTS(text=text, lang=lang, slow=False)
-        tts.save(audio_path)
-        if os.path.exists(audio_path):
-            print(f"Audio file created successfully: {audio_path}")
-        else:
-            print(f"Failed to create audio file: {audio_path}")
-            return None
-        duration = time.time() - start_time
-        print(f"Audio generation took {duration:.2f} seconds.")
-        return f"static/audio/{audio_filename}"  # Updated URL
+        tts.save(temp_path)
+        with open(temp_path, "rb") as f:
+            audio_data = f.read()
+        # Upload to Vercel Blob
+        blob = vercel_blob.put(
+            f"audio/{audio_filename}", audio_data, {"access": "public"})
+        os.remove(temp_path)  # Clean up
+        return blob["url"]
     except Exception as e:
         print(f"Error generating audio: {e}")
         return None
