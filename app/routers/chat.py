@@ -28,7 +28,7 @@ async def get_chat_history(recipient: str, current_user: dict = Depends(get_curr
 
 # Ably instead of direct WebSocket connections
 # Native WebSockets won’t work directly on Vercel’s serverless infrastructure.
-@router.get("/ably/token")
+@router.get("/chat/ably/token")
 async def get_ably_token(current_user: dict = Depends(get_current_user)):
     """GET Endpoint, generates a token tied to the current user's username, which the frontend will use to connect to Ably"""
     if not current_user:

@@ -4,11 +4,22 @@ let channel;
 
 // Initialize Ably with token authentication
 ably = new Ably.Realtime({
-    authUrl: '/ably/token',
+    authUrl: '/chat/ably/token',
     clientId: currentUser.username
 });
+// Log successful connection
 ably.connection.on('connected', () => {
     console.log('Connected to Ably');
+});
+
+// Log connection failures
+ably.connection.on('failed', (err) => {
+    console.error('Ably connection failed:', {
+        error: err.message,
+        code: err.code,
+        statusCode: err.statusCode,
+        details: err.detail
+    });
 });
 
 function startChat(username) {
