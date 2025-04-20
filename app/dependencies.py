@@ -1,13 +1,11 @@
 from app.database import fake_db
 from fastapi import Request, WebSocket
 from typing import Optional
-from app.services.chat_manager import ChatManager
-
-chat_manager = ChatManager()
+from ably import AblyRest
 
 
-def get_chat_manager() -> ChatManager:
-    return chat_manager
+def get_ably(request: Request) -> AblyRest:
+    return request.app.state.ably
 
 
 async def get_current_user(request: Request) -> Optional[dict]:

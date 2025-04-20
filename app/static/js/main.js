@@ -1,25 +1,21 @@
 let selectedUser = null;
-let ably;
 let channel;
 
 // Initialize Ably with token authentication
-ably = new Ably.Realtime({
+const ably = new Ably.Realtime({
     authUrl: '/chat/ably/token',
-    clientId: currentUser.username
-});
-// Log successful connection
+    authOptions: {
+      method: 'GET',
+      credentials: 'include'
+    }
+  });
+
 ably.connection.on('connected', () => {
     console.log('Connected to Ably');
 });
 
-// Log connection failures
 ably.connection.on('failed', (err) => {
-    console.error('Ably connection failed:', {
-        error: err.message,
-        code: err.code,
-        statusCode: err.statusCode,
-        details: err.detail
-    });
+    console.error('Ably connection failed:', err);
 });
 
 function startChat(username) {
@@ -111,14 +107,14 @@ function sendMessage() {
         credentials: 'include',
         body: JSON.stringify({ recipient: selectedUser, content: message })
     })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to send message');
-        messageInput.value = "";
-    })
-    .catch(error => {
-        console.error('Error sending message:', error);
-        alert('Failed to send message');
-    });
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to send message');
+            messageInput.value = "";
+        })
+        .catch(error => {
+            console.error('Error sending message:', error);
+            alert('Failed to send message');
+        });
 }
 
 function startRecognition() {
@@ -138,11 +134,11 @@ function startRecognition() {
     };
     recognition.lang = langMap[sourceLang] || "en-US";
 
-    recognition.onstart = function() {
+    recognition.onstart = function () {
         console.log(`🎤 Listening (${recognition.lang})...`);
     };
 
-    recognition.onresult = function(event) {
+    recognition.onresult = function (event) {
         let interim = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
@@ -154,13 +150,13 @@ function startRecognition() {
         }
     };
 
-    recognition.onerror = function(event) {
+    recognition.onerror = function (event) {
         console.error("❌ Speech recognition error:", event.error);
         alert(`Speech recognition error: ${event.error}`);
         document.getElementById("messageInput").placeholder = "Type or speak your message...";
     };
 
-    recognition.onend = function() {
+    recognition.onend = function () {
         document.getElementById("messageInput").placeholder = "Type or speak your message...";
     };
 

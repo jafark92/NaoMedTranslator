@@ -1,84 +1,94 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
-from typing import List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
+from typing import List
+from ably import AblyRest
 from app.schemas import Message, SendMessageRequest
-from app.dependencies import get_current_user, get_chat_manager
-from app.services.chat_manager import ChatManager
 from app.services.audio import text_to_speech
 from app.services.translator import translate_message
+from app.dependencies import get_current_user
 from app.database import fake_db
-from ably import AblyRest
-import os
+from app.dependencies import get_current_user, get_ably
 
 router = APIRouter()
 
-# Initialize Ably client
-ably = AblyRest(os.getenv("ABLY_API_KEY"))
-
 
 @router.get("/chat/history/{recipient}", response_model=List[Message])
-async def get_chat_history(recipient: str, current_user: dict = Depends(get_current_user), manager: ChatManager = Depends(get_chat_manager)):
+async def get_chat_history(
+    recipient: str,
+    current_user: dict = Depends(get_current_user),
+    ably: AblyRest = Depends(get_ably),
+):
     """
     GET endpoint to fetch chat history between the logged-in user and the recipient.
+    Now using Ably's built-in message history instead of local storage.
     """
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return manager.get_history(current_user.username, recipient)
+
+    channel_name = f"chat:{':'.join(sorted([current_user.username, recipient]))}"
+    channel = ably.channels.get(channel_name)
+    history = await channel.history(limit=50)
+    print(channel_name)
+    print(channel)
+    print(history)
+    return [Message(**msg.data) for msg in history.items]
 
 
-# Ably instead of direct WebSocket connections
-# Native WebSockets won’t work directly on Vercel’s serverless infrastructure.
 @router.get("/chat/ably/token")
-async def get_ably_token(current_user: dict = Depends(get_current_user)):
-    """GET Endpoint, generates a token tied to the current user's username, which the frontend will use to connect to Ably"""
+async def get_ably_token(
+    current_user: dict = Depends(get_current_user),
+    ably: AblyRest = Depends(get_ably),
+):
+    """
+    Generate a secure token for Ably. This allows frontend to connect to Ably using token auth.
+    """
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
     try:
-        # Generate token request
-        token_request = await ably.auth.create_token_request({'clientId': current_user.username})
-
-        # Manually construct the response dictionary to avoid internal class attributes
-        token_response = {
-            "keyName": token_request.key_name,
-            "clientId": token_request.client_id,
-            "nonce": token_request.nonce,
-            "mac": token_request.mac,
-            "capability": token_request.capability,
-            "ttl": token_request.ttl,
-            "timestamp": token_request.timestamp
+        capabilities = {
+            f"chat:{current_user.username}:*": ["publish", "subscribe"],
+            f"chat:*:{current_user.username}": ["publish", "subscribe"]
         }
-
-        print(f"Token response: {token_response}")  # Debug log
-        return token_response
+        print(current_user.username)
+        token_request = await ably.auth.request_token({
+            'clientId': current_user.username,
+            'ttl': 3600 * 1000,  # Optional: Token valid for 1 hour
+            'capability': capabilities,
+        })
+        print("=====================================")
+        print("Returning", token_request.token)
+        return token_request.token  # Safely serialize token
     except Exception as e:
-        print(f"Error generating Ably token: {e}")
+        print(f"Ably token generation error: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to generate Ably token: {str(e)}")
+            status_code=500, detail="Failed to create Ably token")
 
 
 @router.post("/chat/send")
 async def send_message(
     request: SendMessageRequest,
     current_user: dict = Depends(get_current_user),
-    manager: ChatManager = Depends(get_chat_manager)
+    ably: AblyRest = Depends(get_ably),
 ):
     """
-    POST endpoint to receive messages from clients, process them, and publish to Ably
-    Backend publishes messages to Ably channels, and clients subscribe to those channels directly
+    Receive a message, translate if needed, generate audio, and publish to Ably.
     """
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
+        sender = current_user.username
+        recipient = request.recipient
         message = Message(
-            sender=current_user.username,
-            recipient=request.recipient,
+            sender=sender,
+            recipient=recipient,
             content=request.content,
             timestamp=datetime.now(timezone.utc).isoformat()
         )
 
         # Translate message and generate audio if needed
         recipient_user = next(
-            (u for u in fake_db["users"] if u.username == request.recipient), None)
+            (u for u in fake_db["users"] if u.username == recipient), None)
         if recipient_user and recipient_user.language != current_user.language:
             try:
                 message.translated_content = await translate_message(request.content, recipient_user.language)
@@ -88,11 +98,8 @@ async def send_message(
                 message.translated_content = None
                 message.audio_url = None
 
-        # Save to chat history
-        manager.add_message(message)
-
         # Publish to Ably channel
-        channel_name = f"chat:{':'.join(sorted([current_user.username, request.recipient]))}"
+        channel_name = f"chat:{':'.join(sorted([sender, recipient]))}"
         channel = ably.channels.get(channel_name)
         await channel.publish("message", message.model_dump())
 

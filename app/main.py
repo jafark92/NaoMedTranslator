@@ -1,13 +1,24 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from app.routers import auth, home, chat
-from dotenv import load_dotenv
 import os
+from ably import AblyRest
 
-app = FastAPI()
 
-load_dotenv()  # Load from .env file
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ─── Startup ─────────────────────────────────────────────────────────────
+    app.state.ably = AblyRest(os.getenv("ABLY_API_KEY"))
+    # (any other startup logic here)
+    yield
+    # ─── Shutdown ────────────────────────────────────────────────────────────
+    await app.state.ably.close()
+    # (any other cleanup here)
+
+# Pass our lifespan function into FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 # Serve static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
