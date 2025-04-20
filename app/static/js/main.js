@@ -28,7 +28,6 @@ function startChat(username) {
         return;
     }
     selectedUser = username;
-    console.log(selectedUser)
     document.getElementById("chat-header").textContent = `Chatting with: ${username}`;
     document.getElementById("chat-box").innerHTML = "";
     fetchChatHistory(username);

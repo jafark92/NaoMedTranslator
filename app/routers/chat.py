@@ -35,7 +35,7 @@ async def get_ably_token(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         token_request = ably.auth.create_token_request(
-            {'clientId': current_user['username']})
+            {'clientId': current_user.username})
         return token_request
     except Exception as e:
         print(f"Error generating Ably token: {e}")
@@ -55,31 +55,36 @@ async def send_message(
     """
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    message = Message(
-        sender=current_user['username'],
-        recipient=request.recipient,
-        content=request.content,
-        timestamp=datetime.now(timezone.utc).isoformat()
-    )
+    try:
+        message = Message(
+            sender=current_user['username'],
+            recipient=request.recipient,
+            content=request.content,
+            timestamp=datetime.now(timezone.utc).isoformat()
+        )
 
-    # Translate message and generate audio if needed
-    recipient_user = next(
-        (u for u in fake_db["users"] if u.username == request.recipient), None)
-    if recipient_user and recipient_user.language != current_user.language:
-        try:
-            message.translated_content = await translate_message(request.content, recipient_user.language)
-            message.audio_url = await text_to_speech(message.translated_content, recipient_user.language)
-        except Exception as e:
-            print(f"Translation or TTS error: {e}")
-            message.translated_content = None
-            message.audio_url = None
+        # Translate message and generate audio if needed
+        recipient_user = next(
+            (u for u in fake_db["users"] if u.username == request.recipient), None)
+        if recipient_user and recipient_user.language != current_user.language:
+            try:
+                message.translated_content = await translate_message(request.content, recipient_user.language)
+                message.audio_url = await text_to_speech(message.translated_content, recipient_user.language)
+            except Exception as e:
+                print(f"Translation or TTS error: {e}")
+                message.translated_content = None
+                message.audio_url = None
 
-    # Save to chat history
-    manager.add_message(message)
+        # Save to chat history
+        manager.add_message(message)
 
-    # Publish to Ably channel
-    channel_name = f"chat:{':'.join(sorted([current_user['username'], request.recipient]))}"
-    channel = ably.channels.get(channel_name)
-    await channel.publish("message", message.model_dump())
+        # Publish to Ably channel
+        channel_name = f"chat:{':'.join(sorted([current_user['username'], request.recipient]))}"
+        channel = ably.channels.get(channel_name)
+        await channel.publish("message", message.model_dump())
 
-    return {"status": "success"}
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Error generating Ably token: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate Ably token: {str(e)}")
