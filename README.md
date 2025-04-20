@@ -6,6 +6,8 @@ A multilingual chat application designed for medical professionals and patients 
 
 ## 🚀 Deployment Process
 
+Build on Python 3.13.1
+
 ### Development Setup
 To run the application locally during development:
 
@@ -120,6 +122,7 @@ The project is organized for modularity and maintainability:
 ├── tests/                   # Test cases
 │   └── test_*.py            # Unit and integration tests
 ├── requirements.txt         # Project dependencies
+├── vercel.json              # Vercel Configuration
 └── README.md                # Project documentation
 ```
 

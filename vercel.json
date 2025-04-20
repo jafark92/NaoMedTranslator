@@ -1,0 +1,28 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "app/main.py",
+        "use": "@vercel/python",
+        "config": {
+          "runtime": "python3.13.1",
+          "workingDirectory": "/app"
+        }
+      }
+    ],
+    "routes": [
+      {
+        "src": "/static/(.*)",
+        "dest": "app/static/$1"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "app/main.py"
+      }
+    ],
+    "build": {
+      "env": {
+        "PYTHON_VERSION": "3.13.1"
+      }
+    }
+  }
